@@ -9,9 +9,8 @@ import re
 from datetime import datetime, timezone
 
 from bs4 import BeautifulSoup
-from tqdm import tqdm
 
-from auth import REPORT_URL, get_session
+from RFP_Project_1.cip_scraper.auth import REPORT_URL, get_session
 
 DEBUG_HTML_PATH = os.path.join(os.path.dirname(__file__), "debug", "queryResults_co_arch.html")
 OUTPUT_JSON_PATH = os.path.join(
@@ -94,21 +93,16 @@ def parse_record(table) -> dict:
 
 
 def main():
-    print("[1/5] Logging in...")
     session = get_session()
-
-    print("[2/5] Submitting search (Colorado / Architectural-Structural)...")
     resp = session.post(REPORT_URL, data=SEARCH_PAYLOAD)
 
-    print("[3/5] Saving raw response to debug/...")
     os.makedirs(os.path.dirname(DEBUG_HTML_PATH), exist_ok=True)
     with open(DEBUG_HTML_PATH, "w", encoding="utf-8") as f:
         f.write(resp.text)
 
-    print("[4/5] Parsing project records...")
     soup = BeautifulSoup(resp.text, "lxml")
-    tables = [t for t in soup.find_all("table") if _is_record_table(t)]
-    records = [parse_record(t) for t in tqdm(tables, unit="record")]
+    tables = soup.find_all("table")
+    records = [parse_record(t) for t in tables if _is_record_table(t)]
 
     output = {
         "source": REPORT_URL,
@@ -121,12 +115,11 @@ def main():
         "records": records,
     }
 
-    print("[5/5] Writing JSON output...")
     os.makedirs(os.path.dirname(OUTPUT_JSON_PATH), exist_ok=True)
     with open(OUTPUT_JSON_PATH, "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
 
-    print(f"Done — parsed {len(records)} records")
+    print(f"Parsed {len(records)} records")
     print(f"Saved JSON to {OUTPUT_JSON_PATH}")
 
 
