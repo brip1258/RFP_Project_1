@@ -13,6 +13,10 @@ from tqdm import tqdm
 
 from auth import REPORT_URL, get_session
 
+from pymongo import MongoClient
+from pymongo.server_api import ServerApi
+
+
 DEBUG_HTML_PATH = os.path.join(os.path.dirname(__file__), "debug", "queryResults_co_arch.html")
 OUTPUT_JSON_PATH = os.path.join(
     os.path.dirname(__file__), "output", "colorado_architectural_structural.json"
@@ -122,10 +126,16 @@ def main():
     }
 
     print("[5/5] Writing JSON output...")
-    os.makedirs(os.path.dirname(OUTPUT_JSON_PATH), exist_ok=True)
-    with open(OUTPUT_JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
-
+    try:
+        username = os.environ.get("MONG_USERNAME")
+        password = os.environ.get("MONG_PASSWORD")
+        uri = f"mongodb+srv://{username}:{password}@crpupdates.7pf961t.mongodb.net/?appName=crpUpdates"
+        client= MongoClient(uri, server_api=ServerApi('1')) 
+        db = client["crpUpdates"]
+        collection = db["crpUpdates"]
+        collection.insert_many(output['records'])
+    except:
+        print("Couldn't upload to database")
     print(f"Done — parsed {len(records)} records")
     print(f"Saved JSON to {OUTPUT_JSON_PATH}")
 
