@@ -1,0 +1,5 @@
+.env
+debug/
+output/
+*.csv
+__pycache__/
