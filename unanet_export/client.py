@@ -1,11 +1,28 @@
 """Minimal REST client for the Unanet API.
 
-Configure via environment variables (see .env):
-    UNANET_BASE_URL     e.g. https://yourcompany.unanet.biz
+Configure via environment variables (see .env). Two auth modes are supported
+-- use whichever your instance actually accepts:
+
+  API key (preferred, if available):
     UNANET_API_KEY      API key/token generated in Unanet
     UNANET_AUTH_HEADER  Header name for the key (default: Authorization)
     UNANET_AUTH_SCHEME  Prefix before the key, e.g. "Bearer" (default: Bearer)
-    UNANET_LEADS_ENDPOINT  Path to the leads list endpoint (default: /api/leads)
+
+  Basic auth (fallback, if no API key option exists in your instance):
+    UNANET_USERNAME          Your regular Unanet login username
+    UNANET_PASSWORD          Your regular Unanet login password
+    UNANET_FIRM_CODE         The firm/company code from the Unanet login screen
+    UNANET_USERNAME_TEMPLATE How firm code + username combine into the Basic
+                             auth username (default: "{firm}\\{username}").
+                             Unanet's login page treats these as separate
+                             fields, but the API typically wants them merged
+                             into one string -- if you get a 401, check your
+                             API docs for the actual separator (some use
+                             "{firm}/{username}" or "{username}@{firm}").
+
+  Always required:
+    UNANET_BASE_URL       e.g. https://yourcompany.unanet.biz
+    UNANET_LEADS_ENDPOINT Path to the leads list endpoint (default: /api/leads)
 
 The exact auth scheme and endpoint path vary by Unanet instance/version --
 check your instance's API docs (usually under Admin > API, or a Swagger UI)
@@ -24,20 +41,40 @@ BASE_URL = os.environ.get("UNANET_BASE_URL", "").rstrip("/")
 API_KEY = os.environ.get("UNANET_API_KEY")
 AUTH_HEADER = os.environ.get("UNANET_AUTH_HEADER", "Authorization")
 AUTH_SCHEME = os.environ.get("UNANET_AUTH_SCHEME", "Bearer")
+USERNAME = os.environ.get("UNANET_USERNAME")
+PASSWORD = os.environ.get("UNANET_PASSWORD")
+FIRM_CODE = os.environ.get("UNANET_FIRM_CODE")
+USERNAME_TEMPLATE = os.environ.get("UNANET_USERNAME_TEMPLATE", "{firm}\\{username}")
 LEADS_ENDPOINT = os.environ.get("UNANET_LEADS_ENDPOINT", "/api/leads")
 
 
 def get_session() -> requests.Session:
-    """Build a requests session authenticated against the Unanet API."""
-    if not BASE_URL or not API_KEY:
-        sys.exit(
-            "Missing UNANET_BASE_URL / UNANET_API_KEY. Fill in unanet_export/.env "
-            "with your Unanet instance URL and API key."
-        )
+    """Build a requests session authenticated against the Unanet API.
+
+    Uses an API key if one is set, otherwise falls back to HTTP Basic auth
+    with UNANET_USERNAME / UNANET_PASSWORD (and UNANET_FIRM_CODE, if your
+    instance requires a firm code at login).
+    """
+    if not BASE_URL:
+        sys.exit("Missing UNANET_BASE_URL. Fill in unanet_export/.env with your Unanet instance URL.")
 
     session = requests.Session()
-    header_value = f"{AUTH_SCHEME} {API_KEY}".strip() if AUTH_SCHEME else API_KEY
-    session.headers.update({AUTH_HEADER: header_value, "Accept": "application/json"})
+    session.headers.update({"Accept": "application/json"})
+
+    if API_KEY:
+        header_value = f"{AUTH_SCHEME} {API_KEY}".strip() if AUTH_SCHEME else API_KEY
+        session.headers.update({AUTH_HEADER: header_value})
+    elif USERNAME and PASSWORD:
+        basic_username = (
+            USERNAME_TEMPLATE.format(firm=FIRM_CODE, username=USERNAME) if FIRM_CODE else USERNAME
+        )
+        session.auth = (basic_username, PASSWORD)
+    else:
+        sys.exit(
+            "Missing credentials. Fill in either UNANET_API_KEY, or "
+            "UNANET_USERNAME / UNANET_PASSWORD, in unanet_export/.env."
+        )
+
     return session
 
 
