@@ -119,7 +119,6 @@ def main():
         "records": records,
     }
 
-<<<<<<< HEAD
     print("[5/5] Writing JSON output...")
     try:
         username = os.environ.get("MONG_USERNAME")
@@ -132,13 +131,6 @@ def main():
     except:
         print("Couldn't upload to database")
     print(f"Done — parsed {len(records)} records")
-=======
-    os.makedirs(os.path.dirname(OUTPUT_JSON_PATH), exist_ok=True)
-    with open(OUTPUT_JSON_PATH, "w", encoding="utf-8") as f:
-        json.dump(output, f, indent=2, ensure_ascii=False)
-
-    print(f"Parsed {len(records)} records")
->>>>>>> origin/feature/unanet_scraper
     print(f"Saved JSON to {OUTPUT_JSON_PATH}")
 
 
